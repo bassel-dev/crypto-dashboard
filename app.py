@@ -12,9 +12,7 @@ st.set_page_config(
 
 BASE_URL = "https://api.coingecko.com/api/v3"
 
-
 def format_big_number(number):
-    #  A Function I Use to make numbers readable (Mio/Mrd)
     if number is None:
         return "N/A"
     
@@ -31,10 +29,9 @@ def format_big_number(number):
 
 # The API functions 
 
-@st.cache_data(ttl=600) # Cache for 10 mins so I don't get banned by API, due to the free limit
+@st.cache_data(ttl=600)
 def get_coins_list():
     url = f"{BASE_URL}/coins/markets"
-    # Parameters for the API
     params = {
         "vs_currency": "eur",
         "order": "market_cap_desc",
@@ -45,7 +42,6 @@ def get_coins_list():
     try:
         response = requests.get(url, params=params, timeout=10)
         
-        # Check if request was successful
         if response.status_code == 200:
             return response.json()
         else:
@@ -67,20 +63,16 @@ def get_coin_history(coin_id, days):
         response = requests.get(url, params=params, timeout=10)
         data = response.json()
         
-        # I used 3 dataframes for the charts
-        # 1. Prices
         prices_data = data['prices']
         df_prices = pd.DataFrame(prices_data, columns=['timestamp', 'price'])
         df_prices['timestamp'] = pd.to_datetime(df_prices['timestamp'], unit='ms')
         df_prices = df_prices.set_index('timestamp')
         
-        # 2. Market Caps
         caps_data = data['market_caps']
         df_caps = pd.DataFrame(caps_data, columns=['timestamp', 'market_cap'])
         df_caps['timestamp'] = pd.to_datetime(df_caps['timestamp'], unit='ms')
         df_caps = df_caps.set_index('timestamp')
         
-        # 3. Volumes
         vol_data = data['total_volumes']
         df_vol = pd.DataFrame(vol_data, columns=['timestamp', 'volume'])
         df_vol['timestamp'] = pd.to_datetime(df_vol['timestamp'], unit='ms')
@@ -114,7 +106,6 @@ def main():
         st.warning("Could not load data. Please refresh later.")
         return
 
-    # Creates a list of names for the dropdown
     coin_names = []
     coin_names.append("Global Overview")
     
@@ -129,7 +120,6 @@ def main():
     # Timeframe selection
     days_option = st.sidebar.radio("Timeframe", ["7 Days", "30 Days", "90 Days"])
     
-    # Convert string "7 Days" to integer 7
     days_int = 7
     if days_option == "30 Days":
         days_int = 30
@@ -143,12 +133,10 @@ def main():
         global_stats = get_global_data()
         
         if global_stats:
-            # Step-by-step extraction of data (easier to read)
             total_mcap = global_stats['total_market_cap']['eur']
             total_vol = global_stats['total_volume']['eur']
             btc_percentage = global_stats['market_cap_percentage']['btc']
             
-            # Columns for metrics
             col1, col2, col3 = st.columns(3)
             col1.metric("Market Cap", format_big_number(total_mcap))
             col2.metric("Volume (24h)", format_big_number(total_vol))
@@ -157,10 +145,12 @@ def main():
         st.write("---")
         st.subheader("Top 100 Rankings")
         
-        # Prepare Dataframe for display
         df = pd.DataFrame(coins_data)
         
-        # Only show important columns
+        # Apply formatting
+        df['market_cap'] = df['market_cap'].apply(format_big_number)
+        df['current_price'] = df['current_price'].apply(lambda x: f"€ {x:,.2f}")
+        
         simple_df = df[['name', 'symbol', 'current_price', 'price_change_percentage_24h', 'market_cap']]
         
         st.dataframe(
@@ -168,25 +158,18 @@ def main():
             column_config={
                 "name": "Name",
                 "symbol": "Symbol",
-                "current_price": st.column_config.NumberColumn(
-                    "Price (EUR)",
-                    format="€ %.2f"
-                ),
+                "current_price": "Price (EUR)",
                 "price_change_percentage_24h": st.column_config.NumberColumn(
                     "24h Change",
                     format="%.2f %%"
                 ),
-                "market_cap": st.column_config.NumberColumn(
-                    "Market Cap",
-                    format="€ %.2f",  # Oder format="€ %d" für ganze Zahlen
-                ),
+                "market_cap": "Market Cap",
             },
             hide_index=True,
             use_container_width=True
         )
     
     else:
-        # Finds the selected coin in the list
         selected_coin = None
         for coin in coins_data:
             if coin['name'] == selection:
@@ -196,10 +179,8 @@ def main():
         if selected_coin:
             st.title(f"{selected_coin['name']} ({selected_coin['symbol'].upper()})")
             
-            # Display Image
             st.image(selected_coin['image'], width=64)
             
-            # Current Stats
             price = selected_coin['current_price']
             change = selected_coin['price_change_percentage_24h']
             high = selected_coin['high_24h']
@@ -211,10 +192,8 @@ def main():
             
             st.write("---")
             
-            # Charts
             st.subheader(f"History ({days_int} Days)")
             
-            # Unpacks the 3 dataframes
             df_price, df_cap, df_vol = get_coin_history(selected_coin['id'], days_int)
             
             if df_price is not None:
