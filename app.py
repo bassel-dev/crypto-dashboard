@@ -164,7 +164,23 @@ def main():
         simple_df = df[['name', 'symbol', 'current_price', 'price_change_percentage_24h', 'market_cap']]
         
         st.dataframe(
-            simple_df, 
+            simple_df,
+            column_config={
+                "name": "Name",
+                "symbol": "Symbol",
+                "current_price": st.column_config.NumberColumn(
+                    "Price (EUR)",
+                    format="€ %.2f"
+                ),
+                "price_change_percentage_24h": st.column_config.NumberColumn(
+                    "24h Change",
+                    format="%.2f %%"
+                ),
+                "market_cap": st.column_config.NumberColumn(
+                    "Market Cap",
+                    format="€ %.2f",  # Oder format="€ %d" für ganze Zahlen
+                ),
+            },
             hide_index=True,
             use_container_width=True
         )
